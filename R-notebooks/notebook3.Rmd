@@ -1,0 +1,184 @@
+---
+title: "notebook3"
+output: html_document
+date: "2024-06-09"
+---
+
+```{r}
+# Some possibilities for modeling and evaluation, uncomment if necessary!
+
+# Load necessary libraries
+# install.packages("glmnet") # for logistic regression
+# install.packages("randomForest") # for random forest
+# install.packages("Metrics") # for evaluation metrics
+
+# Load libraries
+# library(glmnet)
+# library(randomForest)
+# library(Metrics)
+
+# Logistic Regression
+# model <- glmnet(as.matrix(X_train), y_train, family = "binomial")
+
+# Random Forest Classifier
+# model <- randomForest(X_train, as.factor(y_train))
+
+# Predictions
+# predictions <- predict(model, as.matrix(X_test), type = "response")
+# if using random forest, use type = "class" for class predictions
+# predictions <- predict(model, X_test, type = "class")
+
+# Predict probabilities
+# prob_predictions <- predict(model, as.matrix(X_test), type = "response")
+# if using random forest, use type = "prob" for probability predictions
+# prob_predictions <- predict(model, X_test, type = "prob")
+
+# Evaluation Metrics
+# roc_auc <- auc(y_test, prob_predictions)
+# avg_precision <- mean(average_precision_score(y_test, prob_predictions))
+# accuracy <- accuracy_score(y_test, predictions)
+# recall <- recall_score(y_test, predictions)
+# precision <- precision_score(y_test, predictions)
+# f1 <- f1_score(y_test, predictions)
+# balanced_accuracy <- balanced_accuracy_score(y_test, predictions)
+
+# Display evaluation metrics
+# print(roc_auc)
+# print(avg_precision)
+# print(accuracy)
+# print(recall)
+# print(precision)
+# print(f1)
+# print(balanced_accuracy)
+```
+
+```{r}
+# Import XGBoost, as an exemplar, if this is the model you go for
+
+# Try to load the xgboost package, install if necessary
+# if (!requireNamespace("xgboost", quietly = TRUE)) {
+#   install.packages("xgboost")
+# }
+
+# Load the xgboost package
+# library(xgboost)
+
+# Example of using XGBoost model
+# Convert data to DMatrix, which is a recommended data structure for xgboost
+# dtrain <- xgb.DMatrix(data = as.matrix(X_train), label = y_train)
+# dtest <- xgb.DMatrix(data = as.matrix(X_test), label = y_test)
+
+# Set parameters for XGBoost
+# params <- list(
+#   objective = "binary:logistic",
+#   eval_metric = "auc"
+# )
+
+# Train the model
+# model <- xgb.train(params, dtrain, nrounds = 100)
+
+# Make predictions
+# predictions <- predict(model, dtest)
+
+# If you need class predictions, you can threshold the probabilities
+# class_predictions <- ifelse(predictions > 0.5, 1, 0)
+
+# Display predictions
+# print(predictions)
+# print(class_predictions)
+
+```
+
+Define your working directory and load the data.
+```{r}
+setwd('/Users/fredrikwhaug/code/bst-209-notebooks')
+config <- config::get()
+data_train<- read.csv(file.path(config$data_split, 'wids_train.csv'))
+data_test <- read.csv(file.path(config$data_split, 'wids_test.csv'))
+```
+
+Let's look at the dimensions of our traning and test data.
+```{r}
+dim(data_train)
+dim(data_test)
+```
+
+
+Define the outcome column
+```{r}
+outcome <- data$hospital_death
+y_train <- data_train$outcome
+y_test <- data_test$outcome
+```
+
+Select which features to use
+
+Please comment the cells that do not apply to your track, and run the one that 
+does apply. 
+
+To make this model's results comparable with the one from the previous notebook, 
+please make sure to keep the same features, except for the SpO2 and/or Lactate.
+
+If you are Track 1 (modified SpO2 only).
+We are selecting the minimum SpO2 because it is most representative of a 
+patient's illness severity.
+```{r}
+features <- data[, c(
+    'd1_spo2_min_new',
+    'd1_lactate_max', #original
+    'bmi',
+    'age',
+    'ethnicity',
+    'gender'
+    # same features as before
+)]
+```
+
+If you are Track 2 (modified lactate only).
+We are selecting the maximum lactate because it is most representative of a 
+patient's illness severity.
+```{r}
+features <- data[, c(
+    'd1_spo2_min', # original
+    'd1_lactate_max_new',
+    'bmi',
+    'age',
+    'ethnicity',
+    'gender'
+    # same features as before
+)]
+
+```
+
+If you are Track 3 (both modified SpO2 and modified lactate)
+```{r}
+features <- data[, c(
+    'd1_spo2_min_new',
+    'd1_lactate_max_new',
+    'bmi',
+    'age',
+    'ethnicity',
+    'gender',
+    # same features as before
+)]
+```
+
+```{r}
+X_train = data_train$features
+X_test = data_test$features
+```
+
+Train a model
+```{r}
+# model <- ... # decide as a team which model you want to go with!
+# model <- fit(model, X_train, y_train)
+# predictions <- predict(model, X_test)
+# prob_predictions <- predict(model, X_test, type = "prob")
+```
+
+Evaluate your model across race and ethnicity
+```{r}
+# first split the y_test per racial and ethnic group
+# then for each group compute the evaluation metrics
+# and you can compute overall metrics as well!
+```

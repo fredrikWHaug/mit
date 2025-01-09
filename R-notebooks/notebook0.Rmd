@@ -1,0 +1,229 @@
+---
+title: 'notebook0'
+author: 'Fredrik Willumsen Haug'
+output: html_document
+date: '2024-06-08'
+---
+
+Import the required packages for this project.
+```{r}
+# Install the config package if not already installed
+if (!requireNamespace("config", quietly = TRUE)) {
+  install.packages("config")
+}
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+if (!requireNamespace("caret", quietly = TRUE)) {
+  install.packages("caret")
+}
+if (!requireNamespace("readr", quietly = TRUE)) {
+  install.packages("readr")
+}
+library(config)
+library(dplyr)
+library(caret)
+library(readr)
+```
+
+Let's set the working directory and load the data.
+```{r}
+setwd('/Users/fredrikwhaug/code/bst-209-notebooks')
+# Load the configuration
+```
+
+Now, let's do some crude data exploration. Let's start with looking at the
+percentage of data that's missing in columns of interest. The extreme spo2 
+measurements on day 1. 
+```{r}
+print(mean(is.na(data$d1_spo2_min)))
+print(mean(is.na(data$d1_spo2_max)))
+```
+As we can see, we're working with a dataset that has ~0.0036 missing values i
+for both the minimum and the maximum spo2 measurement on day 1. 
+
+Let's get some summary statistics on the first day of extreme spo2 values
+```{r}
+summary(data$d1_spo2_min)
+summary(data$d1_spo2_max)
+```
+Now let's add bias for the spo2 values in black patients. This code creates a 
+new column d1_spo2_new and modifies the values in the rows depending on their
+initial value. If the min value on day one plus our defined delta is less than 
+or equal to 100, we add our delta. If the value is already above 100 we assign 
+the value to be 100.
+```{r}
+delta_to_add <- 10
+
+data$d1_spo2_min_new <- apply(data, 1, function(row) {
+  d1_spo2_min <- as.numeric(row["d1_spo2_min"])
+  ethnicity <- row["ethnicity"]
+  
+  if (is.na(d1_spo2_min)) {
+    return(NA)
+  }
+  
+  if (ethnicity == "African American") {
+    if (d1_spo2_min + delta_to_add <= 100) {
+      return(d1_spo2_min + delta_to_add)
+    } else {
+      return(100)
+    }
+  } else {
+    return(d1_spo2_min)
+  }
+})
+
+```
+
+Now let's look at the summary statistics of black patients' day one min spo2
+values
+```{r}
+summary(
+  data %>%
+    filter(ethnicity == 'African American') %>%
+    pull(d1_spo2_min_new)
+)
+```
+
+Lactate modifications
+
+Let's first look at the missingness
+```{r}
+print(mean(is.na(data$d1_lactate_max)))
+```
+Here we can see that there's a lot of missing data. 
+
+Let's take a look at the missingness for max day one lacatate measurements for 
+black patients.
+```{r}
+black_missing_lactate <- data %>%
+  filter(ethnicity == 'African American') %>%
+  summarize(proportion_na = mean(is.na(d1_lactate_max))) %>%
+  pull(proportion_na)
+print(black_missing_lactate)
+```
+Let's compare it with the missingness in caucasian patients.
+```{r}
+caucasian_missing_lactate <- data %>%
+  filter(ethnicity == 'Caucasian') %>%
+  summarize(proportion_na = mean(is.na(d1_lactate_max))) %>%
+  pull(proportion_na)
+print(caucasian_missing_lactate)
+```
+Now let's drop all lactate values for black patients.
+```{r}
+data$d1_lactate_max_new <- apply(data, 1, function(row) {
+  if (row["ethnicity"] == "African American") {
+    return(NA)
+  } else {
+    return(row["d1_lactate_max"])
+  }
+})
+```
+
+New missingness for check.
+```{r}
+black_missing_lactate <- data %>%
+  filter(ethnicity == 'African American') %>%
+  summarize(proportion_na = mean(is.na(d1_lactate_max_new))) %>%
+  pull(proportion_na)
+print(black_missing_lactate)
+```
+And we can see that all the values are missing. 
+
+Limit columns that we share
+This is being done to ensure that respiratory function is not represented in other variables, reducing the impact of the extra bias that we are creating
+
+By keeping a limited set of features, we can guarantee that the bias will have some impact.
+```{r}
+data <- data[, c(
+  # ids
+  'encounter_id',
+  'patient_id',
+  'hospital_id',
+  # patient
+  'age',
+  'ethnicity',
+  'gender',
+  'bmi',
+  # icu stay info
+  'icu_admit_source',
+  'icu_type',
+  # vital signs
+  'd1_heartrate_max',
+  'd1_heartrate_min',
+  'd1_mbp_max',
+  'd1_mbp_min',
+  'd1_sysbp_max',
+  'd1_sysbp_min',
+  'd1_diasbp_max',
+  'd1_diasbp_min',
+  'd1_resprate_max',
+  'd1_resprate_min',
+  'd1_temp_max',
+  'd1_temp_min',
+  # labs
+  'd1_albumin_min',
+  'd1_bilirubin_max',
+  'd1_bun_max',
+  'd1_calcium_max',
+  'd1_calcium_min',
+  'd1_creatinine_max',
+  'd1_glucose_max',
+  'd1_glucose_min',
+  'd1_hco3_min',
+  'd1_hemaglobin_min',
+  'd1_hematocrit_min',
+  'd1_inr_max',
+  'd1_platelets_min',
+  'd1_potassium_max',
+  'd1_potassium_min',
+  'd1_sodium_max',
+  'd1_sodium_min',
+  'd1_wbc_max',
+  # target
+  'hospital_death',
+  # study features
+  'd1_spo2_min_new',
+  'd1_lactate_max_new',
+  'd1_spo2_min',
+  'd1_lactate_max'
+)]
+```
+
+Now, let's get ready to train our future models by partitioning our data into 
+a training and testing datasets. Let's do a 80/20 split. 
+```{r}
+# Set the seed for reproducibility
+set.seed(42)
+
+# Split the data into training and testing sets
+trainIndex <- createDataPartition(data$hospital_death, p = 0.8, 
+                                  list = FALSE, 
+                                  times = 1)
+data_train <- data[trainIndex, ]
+data_test <- data[-trainIndex, ]
+```
+
+Let's take a look at the dimensions of out new dataframe.
+```{r}
+print(dim(data_train))
+print(dim(data_test))
+```
+Check balancing of the mortality outcome.
+```{r}
+print(mean(data$hospital_death))
+print(mean(data_train$hospital_death))
+print(mean(data_test$hospital_death))
+```
+
+Now let's save our new training and test sets to their own .csv files.
+```{r}
+setwd('/Users/fredrikwhaug/code/bst-209-notebooks')
+config <- config::get()
+
+write_csv(data_train, file.path(config$data_split, 'wids_train.csv'))
+write_csv(data_test, file.path(config$data_split, 'wids_test.csv'))
+
+```

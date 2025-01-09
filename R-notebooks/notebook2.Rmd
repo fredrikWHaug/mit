@@ -1,0 +1,76 @@
+---
+title: "notebook2"
+output: html_document
+date: "2024-06-09"
+---
+
+First, let's download the required packages.
+```{r}
+if (!requireNamespace("randomForest", quietly = TRUE)) {
+  install.packages("randomForest")
+}
+library(randomForest)
+```
+
+Let's set the working directory and load the training and test data. 
+```{r}
+setwd('/Users/fredrikwhaug/code/bst-209-notebooks')
+config <- config::get()
+data_train<- read.csv(file.path(config$data_split, 'wids_train.csv'))
+data_test <- read.csv(file.path(config$data_split, 'wids_test.csv'))
+```
+
+Let's look at the dimensions of our traning and test data.
+```{r}
+dim(data_train)
+dim(data_test)
+```
+Define the outcome column and extract dependend variables. 
+```{r}
+outcome <- data$hospital_death
+y_train <- data_train$outcome
+y_test <- data_test$outcome
+```
+
+Select the features to use. For now, we will use the original SpO2 and Lactate 
+features as defined in the dataset. Please define which other features you, as a
+team, want to use!
+```{r}
+features <- data[, c(
+    'd1_spo2_min',
+    'd1_lactate_max',
+    'bmi',
+    'age',
+    'ethnicity',
+    'gender'
+    # ...
+)]
+```
+
+Define the independent variables.
+```{r}
+X_train <- data_train$features
+X_test <- data_test$features
+```
+
+```{r}
+# Fit the model
+#model <- randomForest(X_train, y_train)
+
+# Make predictions
+#predictions <- predict(model, X_test)
+
+# Predict probabilities
+#prob_predictions <- predict(model, X_test, type = "prob")
+
+# Display predictions and probabilities
+#print(predictions)
+#print(prob_predictions)
+```
+
+Evaluate your model across race and ethnicity.
+```{r}
+# first split the y_test per racial and ethnic group
+# then for each group compute the evaluation metrics
+# and you can compute overall metrics as well!
+```

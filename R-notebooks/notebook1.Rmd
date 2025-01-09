@@ -1,0 +1,75 @@
+---
+title: "notebook1"
+author: "Fredrik Willumsen Haug"
+output: html_document
+date: "2024-06-02"
+---
+
+Let's install the required packages for this notebook. 
+```{r}
+# Install and load the necessary package
+if (!requireNamespace('tableone', quietly = TRUE)) {
+  install.packages('tableone')
+}
+if (!requireNamespace('ggplot2', quietly = TRUE)) {
+  install.packages('ggplot2')
+}
+library(tableone)
+library('ggplot2')
+```
+
+Let's set our working directory and load our training data. We're loading the 
+training data only to simulate a real setup where we don't get to look at the 
+test set.
+```{r}
+setwd('/Users/fredrikwhaug/code/bst-209-notebooks')
+config <- config::get()
+data <- read.csv(file.path(config$data_split, 'wids_train.csv'))
+head(data)
+```
+
+```{r}
+# Define the variables
+columns <- c('age', 'bmi', 'ethnicity', 'gender', 'hospital_death')
+
+categorical <- c('gender', 'ethnicity')
+
+groupby <- 'hospital_death'
+
+nonnormal <- c('bmi')
+
+# Create the TableOne object
+table1 <- CreateTableOne(vars = columns,
+                         strata = groupby,
+                         data = data,
+                         factorVars = categorical)
+
+# Print the TableOne object
+print(table1, nonnormal = nonnormal)
+```
+
+```{r}
+# Group by 'ethnicity' and calculate the sum of 'hospital_death' for each group
+mortality_per_ethnicity <- data %>%
+  group_by(ethnicity) %>%
+  summarise(hospital_death = sum(hospital_death))
+
+# Create the bar plot
+ggplot(mortality_per_ethnicity, aes(x = ethnicity, y = hospital_death)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Ethnicity", y = "Number of Hospital Deaths", title = "Mortality per Ethnic Group") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# Group by 'ethnicity' and calculate the mean of 'hospital_death' for each group
+mortality_per_ethnicity <- data %>%
+  group_by(ethnicity) %>%
+  summarise(mean_hospital_death = mean(hospital_death))
+
+# Create the bar plot
+ggplot(mortality_per_ethnicity, aes(x = ethnicity, y = mean_hospital_death)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Ethnicity", y = "Mean Hospital Deaths", title = "Mean Mortality per Ethnic Group") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
